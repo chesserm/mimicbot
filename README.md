@@ -1,8 +1,10 @@
 # MimicBot
 
+## A Fine-Tuned Language Model to Mimic User Speech Patterns
+
 Scrapes text from a discord channel and uses it to fine-tune a language model from HuggingFace to mimic a user's speech patterns. All messages scraped with permission and models only created for users with express permission. Fine-tuned Models are not made public for privacy reasons. 
 
-The current setup fine-tunes GPT-2 using a slightly hacky setup. Futher improvements will explore better models for this use case and better data preprocessing methods. 
+The current setup fine-tunes GPT-2 using a hacky setup. Futher improvements will explore better models for this use case and better data preprocessing methods. 
 
 **There is lots of work still to do (including lots of documentation and cleanup), but it is in a functional state as-is.**
 
