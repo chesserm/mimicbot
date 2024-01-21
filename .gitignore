@@ -1,5 +1,6 @@
-__pycache__
+**/__pycache__
 custom
 messages
 fine_tune_pre_trained_models/models
 **/.ipynb_checkpoints
+**secrets*

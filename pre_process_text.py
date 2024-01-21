@@ -1,4 +1,4 @@
-from utils import read_json, load_secrets, SEP, IMG_TOKEN, GIF_TOKEN, LINK_TOKEN
+from utils import read_json, load_secrets, BOS, SEP, EOS, IMG_TOKEN, GIF_TOKEN, LINK_TOKEN
 from datetime import timedelta
 from dateutil import parser
 import re
@@ -7,13 +7,25 @@ import json
 FOLDER = "messages"
 emote_re = re.compile("(?=:).+(?=:.*\>)")
 
-def break_into_conversations(full_json : dict, user_to_id : dict, time_delta_threshold:int=10):
+def break_into_conversations(full_json : dict, time_delta_threshold:int=10) -> list:
+    """
+    Breaks messages into conversations. 
 
-    new_convo = True
+    Takes all messages received and chunks them into conversations. 
 
+    Input:
+        - full_json: The full json of all scraped messages. Output of downloader.py
+        - time_delta_threshold: A threshold for determining how much time can occur between messages 
+                                in the same conversation (in minutes).
+
+    Output:
+        - convos: A list of convos (each a lists of strings), representing messages 
+                    in the conversation (ordered by time - index 0 is first message)
+    """
     convos = []
     current_convo = None 
     prev_message_time = None 
+
     # Full JSON is sorted in reverse order
     for mssg_idx in range(len(full_json) - 1, -1, -1):
         message = full_json[mssg_idx]
@@ -42,11 +54,19 @@ def break_into_conversations(full_json : dict, user_to_id : dict, time_delta_thr
     return convos
 
 
-def process_msg_text(message:dict):
+def process_msg_text(message:dict) -> str:
     """
-    Handles all pre-processing of message text
+    Handles all pre-processing of message text. 
+
+    Input:
+        - message: A single message object.
+    
+    Output:
+        - processed_msg: The string of processed message string.
     """
     content = message["content"]
+    
+    # Empty string implies an image was sent. Consequence of downloader.py's parse_message()
     if (content == ""):
         content = IMG_TOKEN
         return content 
@@ -57,31 +77,40 @@ def process_msg_text(message:dict):
     for mention in message["mentions"]:
         content = content.replace(f"<@{mention['id']}>", "@" + mention['username'])
 
-    # Check each token in the message for an emote and replace with equivalent text
-    # Also replaces links with link token
+    # Process each word in the message.
+    # Replaces emotes with format expected, lower cases text, replaces links with link token. 
     content_tokens = content.split()
     for i in range(len(content_tokens)):
         token = content_tokens[i]
+
         if (token.startswith("https:")):
             content_tokens[i] = LINK_TOKEN
         else:
             emote_val = re.search(emote_re, token)
             if (emote_val is not None):
-                content_tokens[i] = emote_val.group(0) + ":"
+                # regexp for this is annoying. Need to add back in the closing : (e.g., :KEKW:)
+                content_tokens[i] = emote_val.group(0) + ":" 
             elif(content_tokens[i] not in [GIF_TOKEN, IMG_TOKEN, LINK_TOKEN]):
                 content_tokens[i] = content_tokens[i].lower()
-    content = " ".join(content_tokens)
-
     
+    processed_msg = " ".join(content_tokens)
+    return processed_msg 
 
-    return content 
 
-
-def split_into_user_context(convo:dict):
+def split_into_user_context(convo:list) -> dict:
     """
-    Splits the conversation into context + response pairs
+    Splits a conversation into context + response pairs for model training.
+
+    Input:
+        - convo: A list of strings representing a conversation. First message is assumed to be index 0.
+
+    Output:
+        -  author_data : Dictionary mapping author (str) to list of context response pairs, where the corresponding
+                        author is the one who responded.
     """
     # This combines all contiguous user messages into one string.
+    # Often times in discord, users will split their response into several individual message. This corrects that.
+    # Separate messages denoted by periods.
     combined_messages = []
     prev_author = None 
     curr_message = ""
@@ -116,8 +145,8 @@ def split_into_user_context(convo:dict):
         if (author not in author_data):
             author_data[author] = []
         
-        # Format with sep token
-        train_string = prev_context + f" {SEP} " + message_content # + f" {SEP}"
+        # Format for model training: "[BOS] {prompt} [SEP] {response} [EOS]"
+        train_string = f"{BOS} " + prev_context + f" {SEP} " + message_content + f" {EOS}"
 
         # Format as jsonl
         author_data[author].append( json.dumps({"context" : prev_context, "response" : message_content, "train" : train_string}) + "\n" )
@@ -135,7 +164,6 @@ def main():
     base_message = FOLDER + "/all_messages.json"
     all_msgs_json = read_json(base_message)
 
-
     convos = break_into_conversations(all_msgs_json, user_to_id)
 
     all_author_data = {}
@@ -147,13 +175,12 @@ def main():
                 all_author_data[author] = data 
             else:
                 all_author_data[author] += data
-        
     
+    # Write each author's data to their own .jsonl file.
+    # NOTE: discord usernames can have periods in them. Deal with that as you need to.
     for author, all_data in all_author_data.items():
-        with open(FOLDER + f"/{author}.jsonl", 'w') as fp:
+        with open(FOLDER + f"/user_messages/{author}.jsonl", 'w') as fp:
             fp.writelines(all_data)
-
-
 
 
 
