@@ -6,6 +6,11 @@ from utils import load_secrets, BOS, SEP, EOS
 
 
 class MimicBot(discord.Client):
+    """
+    Created after loosely following Thomas Chaigneau's article: [Building and Launching Your Discord Bot: A Step-by-Step Guide](https://medium.com/@thomaschaigneau.ai/building-and-launching-your-discord-bot-a-step-by-step-guide-f803f7943d33).
+
+    Mixed with this Minimal Bot in [the discordpy docs](https://discordpy.readthedocs.io/en/stable/quickstart.html#a-minimal-bot).
+    """
 
     def __init__(self, intents : "discord.Intents", username:str, model_prompt:str) -> None:
         """
@@ -19,8 +24,8 @@ class MimicBot(discord.Client):
         self.username = username
         self.model_prompt = model_prompt
 
-        self.tokenizer = AutoTokenizer.from_pretrained(f"pretrained_model/models/gpt2/{username}/tokenizer")
-        self.model = AutoModelForCausalLM.from_pretrained(f"pretrained_model/models/gpt2/{username}/model")
+        self.tokenizer = AutoTokenizer.from_pretrained(f"models/gpt2/{username}/tokenizer")
+        self.model = AutoModelForCausalLM.from_pretrained(f"models/gpt2/{username}/model")
         return 
     
 

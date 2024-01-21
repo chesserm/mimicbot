@@ -6,7 +6,9 @@ from utils import load_secrets, write_json
 
 def get_messages(channel_id:str, num_messages:int=100, before_message_id:str=None, headers:dict=None) -> dict:
     """
-    Scrapes messages from a discord channel
+    Scrapes messages from a discord channel.
+
+    Modified from code in Codium's Youtube Video: https://youtu.be/xh28F6f-Cds
 
     Input:
         - channel_id: The channel ID of the channel to scrape.
